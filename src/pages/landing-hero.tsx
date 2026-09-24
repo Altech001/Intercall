@@ -8,12 +8,10 @@ import {
   Lock,
   MessageSquareText,
   Code2,
-  Sparkles,
   Ticket,
   Wallet,
   type LucideIcon,
   Brain,
-  BotIcon,
 } from "lucide-react"
 import { Logo, Orb } from "@/components/brand"
 import { WalletButton } from "@/components/wallet-button"
@@ -267,27 +265,3 @@ function IconChip({ icon: Icon }: { icon: LucideIcon }) {
   )
 }
 
-/** A brushed-metal token with an embossed icon, floating in the scene. */
-function Coin({
-  icon: Icon,
-  depth,
-  className,
-  delay,
-  tilt = 10,
-}: {
-  icon: LucideIcon
-  depth: number
-  className?: string
-  delay: number
-  tilt?: number
-}) {
-  return (
-    <Layer depth={depth} className={cn("absolute", className)}>
-      <div className="ic-float size-full" style={{ animationDelay: `${delay}s`, animationDuration: `${5 + delay}s` }}>
-        <div className="ic-coin grid size-full place-items-center rounded-full" style={{ transform: `rotate(${tilt}deg)` }}>
-          <Icon className="size-[42%] text-[#2b2f38] drop-shadow-[0_1px_0_rgba(255,255,255,0.6)]" strokeWidth={2.4} />
-        </div>
-      </div>
-    </Layer>
-  )
-}
