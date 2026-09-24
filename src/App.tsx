@@ -1,21 +1,30 @@
-import { Button } from "@/components/ui/button"
+import { createBrowserRouter, RouterProvider } from "react-router"
+import { ChatWidget } from "@/components/chat-widget"
+import { Landing } from "@/pages/landing"
+import { Assistant } from "@/pages/dashboard/assistant"
+import { DashboardLayout } from "@/pages/dashboard/layout"
+import { CustomersPage } from "@/pages/dashboard/customers"
+import { SettingsPage } from "@/pages/dashboard/settings"
+import { TicketView } from "@/pages/dashboard/ticket"
+
+const router = createBrowserRouter([
+  { path: "/", element: <Landing /> },
+  // Loaded inside an iframe by public/widget.js on customer sites.
+  { path: "/embed", element: <ChatWidget embedded /> },
+  {
+    path: "/dashboard",
+    element: <DashboardLayout />,
+    children: [
+      { index: true, element: <Assistant /> },
+      { path: "t/:id", element: <TicketView /> },
+      { path: "customers", element: <CustomersPage /> },
+      { path: "settings", element: <SettingsPage /> },
+    ],
+  },
+])
 
 export function App() {
-  return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
-  )
+  return <RouterProvider router={router} />
 }
 
 export default App
