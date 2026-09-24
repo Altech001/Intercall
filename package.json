@@ -13,6 +13,7 @@
     "start": "bun server/prod.ts"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.68.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@mysten-incubation/memwal": "^0.1.8",
     "@mysten/dapp-kit-react": "^2.1.32",

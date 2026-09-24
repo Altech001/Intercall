@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, ArrowUp, BadgeCheck, Brain, ChevronDown, CircleCheck, Lock, Maximize2, Minimize2, SquarePen, UserRound, X } from "lucide-react"
+import { ArrowLeft, ArrowUp, AudioLines, BadgeCheck, Brain, ChevronDown, CircleCheck, Lock, Maximize2, Minimize2, SquarePen, UserRound, X } from "lucide-react"
 import { Orb } from "@/components/brand"
 import { ChatCard } from "@/components/chat-cards"
 import { RichText } from "@/components/rich-text"
+import { VoiceMode } from "@/components/voice-mode"
 import { WalletButton } from "@/components/wallet-button"
 import {
   api,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/api"
 import { identity, useIdentity } from "@/lib/identity"
 import { usePoll } from "@/lib/use-poll"
+import { useVoiceEnabled } from "@/lib/voice"
 import { cn } from "@/lib/utils"
 
 type Me = { customer: PublicCustomer; lastTicketId?: string; botName: string; company: string }
@@ -51,6 +53,13 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
   const [input, setInput] = useState("")
   const [seen, setSeen] = useState(0)
   const [hideBanner, setHideBanner] = useState(() => readFlag(BANNER_KEY))
+  const [voice, setVoice] = useState(false)
+  const canTalk = useVoiceEnabled()
+  // Voice mode sends again before a re-render, so it reads the ticket from here.
+  const ticketRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    ticketRef.current = ticketId
+  }, [ticketId])
   const scroller = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLTextAreaElement>(null)
 
@@ -96,9 +105,7 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
 
   const replies = messages.filter((m) => m.role !== "customer").length
   const unread = open ? 0 : Math.max(0, replies - seen)
-  useEffect(() => {
-    if (open) setSeen(replies)
-  }, [open, replies])
+  if (open && seen !== replies) setSeen(replies)
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" })
@@ -134,9 +141,10 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
       .catch(() => {})
   }
 
-  async function send(text: string, card?: { message: Message; values: Record<string, string> }) {
+  /** Sends a message and resolves with the reply text (what voice mode reads aloud). */
+  async function send(text: string, card?: { message: Message; values: Record<string, string> }, voice = false): Promise<string> {
     text = text.trim()
-    if ((!text && !card) || busy) return
+    if ((!text && !card) || busy) return ""
     setInput("")
     setBusy(true)
     setView("chat")
@@ -148,33 +156,40 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
       { id: draftId, role: "ai", text: "", at: now },
     ])
     const patch = (fn: (m: Message) => Message) => setMessages((all) => all.map((m) => (m.id === draftId ? fn(m) : m)))
-    let tid = ticketId
+    let tid = ticketRef.current
+    let reply = ""
     try {
       await stream(
         "/api/chat",
-        { ...identity.auth(), ticketId, text, card: card && { messageId: card.message.id, values: card.values } },
+        { ...identity.auth(), ticketId: tid, text, voice, card: card && { messageId: card.message.id, values: card.values } },
         (event, data) => {
           if (event === "ticket") {
             tid = (data as { ticketId: string }).ticketId
+            ticketRef.current = tid
             setTicketId(tid)
           } else if (event === "memories") patch((m) => ({ ...m, memories: data as MemoryRef[] }))
           else if (event === "delta") patch((m) => ({ ...m, text: m.text + (data as string) }))
           else if (event === "queued") {
             setMode((data as { mode: ReplyMode }).mode)
             setMessages((all) => all.filter((m) => m.id !== draftId))
+            reply = "Thanks, I've passed that to the team. They'll reply here in the chat."
           } else if (event === "done") {
             const d = data as { message: Message; mode: ReplyMode; status: string }
             setMode(d.mode)
             setStatus(d.status)
             patch(() => d.message)
+            reply = cleanReply(d.message.text)
+            if (d.message.ui?.type === "form") reply += " I've put a short form in the chat for you."
           }
         }
       )
     } catch (e) {
-      patch((m) => ({ ...m, text: (e as Error).message || "Couldn't reach support. Please try again." }))
+      reply = (e as Error).message || "Couldn't reach support. Please try again."
+      patch((m) => ({ ...m, text: reply }))
     }
     setBusy(false)
     if (tid) setTicketId(tid)
+    return reply
   }
 
   const botName = me?.botName ?? "AMI"
@@ -186,7 +201,7 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
       role="dialog"
       aria-label={`Chat with ${botName}`}
       className={cn(
-        "flex flex-col overflow-hidden bg-background text-foreground",
+        "relative flex flex-col overflow-hidden bg-background text-foreground",
         embedded
           ? "h-svh w-full"
           : cn(
@@ -237,6 +252,7 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
         </IconButton>
       </header>
 
+      {voice && <VoiceMode onAsk={(text) => send(text, undefined, true)} onClose={() => setVoice(false)} className="absolute inset-0" />}
       {view === "memory" ? (
         <MemoryView customer={me?.customer} verified={verified} />
       ) : (
@@ -286,7 +302,7 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
                         ui={m.ui}
                         submitted={m.submitted}
                         disabled={busy || (m.ui.type !== "form" && m.id !== lastAi?.id)}
-                        onSubmit={(values) => send("", { message: m, values })}
+                        onSubmit={(values) => void send("", { message: m, values })}
                       />
                     )
                   }
@@ -346,6 +362,18 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
               }}
               className="min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
             />
+            {canTalk && (
+              <button
+                type="button"
+                aria-label="Talk with voice"
+                title="Talk with voice"
+                disabled={busy}
+                onClick={() => setVoice(true)}
+                className="grid size-10 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+              >
+                <AudioLines className="size-4" />
+              </button>
+            )}
             <button
               type="submit"
               aria-label="Send"

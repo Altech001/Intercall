@@ -128,6 +128,18 @@
     @apply font-sans;
     }
 }
+/* Hide scrollbars on an element and all its descendants; scrolling still works. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar,
+  & *::-webkit-scrollbar {
+    display: none;
+  }
+  & * {
+    scrollbar-width: none;
+  }
+}
+
 /* ---------- InterCall: orb + motion ---------- */
 
 .ic-orb {

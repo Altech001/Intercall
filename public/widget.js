@@ -8,7 +8,7 @@
   var frame = document.createElement("iframe")
   frame.src = origin + "/embed"
   frame.title = "Chat with support"
-  frame.allow = "clipboard-write"
+  frame.allow = "clipboard-write; microphone; autoplay"
   frame.style.cssText =
     "transition:width .3s,height .3s;position:fixed;right:24px;bottom:100px;width:min(400px,calc(100vw - 32px));height:min(640px,calc(100vh - 130px));border:1px solid rgba(0,0,0,.1);box-shadow:0 24px 60px -12px rgba(0,0,0,.35);z-index:2147483000;display:none;background:#fff"
 

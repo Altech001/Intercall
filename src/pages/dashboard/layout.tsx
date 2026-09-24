@@ -30,7 +30,7 @@ export function DashboardLayout() {
   const pct = status ? Math.min(100, Math.round((used / status.tokenBudget) * 100)) : 0
 
   return (
-    <div className="flex h-svh bg-muted/40 text-foreground">
+    <div className="no-scrollbar flex h-svh bg-muted/40 text-foreground">
       {/* rail */}
       <aside className="hidden w-14 shrink-0 flex-col items-center justify-between border-r bg-background py-4 sm:flex">
         <Link to="/" aria-label="Home">

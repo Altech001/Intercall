@@ -123,9 +123,9 @@ export async function stream(
   }
 }
 
-/** Hides the hand-off marker, including a half-streamed one at the end. */
+/** Hides [[MARKER]] lines (hand-off, ticket actions), including a half-streamed one at the end. */
 export const cleanReply = (t: string) =>
-  t.replaceAll("[[HANDOFF]]", "").replace(/\[\[[A-Z]*\]?$/, "").trimEnd()
+  t.replace(/\[\[[A-Z]+[^\]\n]*\]\]/g, "").replace(/\[\[[A-Z0-9 #]*\]?$/, "").trimEnd()
 
 /** 12345 → "12.3k" */
 export function formatTokens(n: number) {

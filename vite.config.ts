@@ -11,6 +11,8 @@ function api(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith("/api/")) return next()
+        // Re-read .env so keys added while the dev server runs take effect without a restart.
+        Object.assign(process.env, loadEnv(server.config.mode, import.meta.dirname, ""))
         try {
           const { handle } = await server.ssrLoadModule("/server/api.ts")
           const { serveNode } = await server.ssrLoadModule("/server/node.ts")

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ps -o lstart= -p 22734)",
+      "Bash(grep -n \"async function ask\\\\|stream\\(\\\\\"/api/assist\\\\\"\\\\|VoiceMode onAsk\\\\|async function send\\\\|\\\\\"/api/chat\\\\\",\\\\|ticketId: tid, text\\\\|const b = await body<Identity & { ticketId\\\\|const { turns } = await body\\\\|const res = await reply\\(system, turns\\\\|const res = await reply\\(systemPrompt\\(c, memories, ticket\\)\" src/pages/dashboard/assistant.tsx src/components/chat-widget.tsx server/api.ts)",
+      "Bash(curl -s -m 5 localhost:5173/api/tickets)",
+      "Bash(python3 -c 'import sys,json; [print\\(t[\"number\"],t[\"status\"]\\) for t in json.load\\(sys.stdin\\)[:6]]')",
+      "Bash(git checkout *)",
+      "Bash(curl -s -m 60 -X POST localhost:5173/api/assist -H 'content-type: application/json' -d '{\"voice\":true,\"turns\":[{\"role\":\"user\",\"content\":\"Please resolve ticket #9999, it is sorted.\"}]}')",
+      "Bash(curl -s localhost:5173/api/tickets)",
+      "Bash(python3 -c 'import sys,json; print\\([\\(t[\"number\"],t[\"status\"]\\) for t in json.load\\(sys.stdin\\)]\\)')"
+    ]
+  }
+}
