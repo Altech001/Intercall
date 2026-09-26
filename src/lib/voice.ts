@@ -10,15 +10,20 @@ const browserCanRecord = () =>
   !!navigator.mediaDevices?.getUserMedia &&
   typeof MediaRecorder !== "undefined"
 
-/** True once the server has an ElevenLabs key and this browser can record. */
+/**
+ * True once the server has an ElevenLabs key. The button shows even if this browser
+ * can't record, so voice mode can say why instead of silently disappearing.
+ */
 export function useVoiceEnabled() {
   const [on, setOn] = useState(false)
   useEffect(() => {
-    if (!browserCanRecord()) return
     enabled ??= fetch(API_BASE + "/api/voice")
       .then((r) => r.json())
       .then((d: { enabled?: boolean }) => !!d.enabled)
-      .catch(() => false)
+      .catch(() => {
+        enabled = undefined
+        return false
+      })
     void enabled.then(setOn)
   }, [])
   return on
@@ -74,6 +79,12 @@ export class VoiceSession {
 
   /** Records until the speaker pauses. Resolves null if nothing was said. */
   async listen(): Promise<Blob | null> {
+    if (!browserCanRecord())
+      throw new Error(
+        window.isSecureContext
+          ? "This browser can't record audio. Try Chrome, Edge, Firefox or Safari."
+          : "Voice needs a secure page: open this site over https:// (or localhost) to use the microphone."
+      )
     await this.ctx.resume()
     this.mic ??= await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true },
