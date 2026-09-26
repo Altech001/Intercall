@@ -418,7 +418,7 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
             src="/walrus-hero.avif"
             alt=""
             draggable={false}
-            className="size-full origin-[50%_32%] scale-[1.2] object-cover object-top transition-transform duration-300 group-hover:scale-[1.3]"
+            className="size-full origin-[50%_45%] scale-[1.04] object-cover object-top transition-transform duration-300 group-hover:scale-[1.12]"
           />
         </span>
         {open && (

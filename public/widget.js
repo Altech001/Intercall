@@ -25,9 +25,9 @@
   var face = document.createElement("img")
   face.src = origin + "/walrus-hero.avif"
   face.alt = ""
-  face.style.cssText = "width:100%;height:100%;object-fit:cover;object-position:50% 0;transform:scale(1.2);transform-origin:50% 32%;display:block;pointer-events:none"
+  face.style.cssText = "width:100%;height:100%;object-fit:cover;object-position:50% 0;transform:scale(1.04);transform-origin:50% 45%;display:block;pointer-events:none"
   var closeMark = document.createElement("span")
-  closeMark.textContent = "✕"
+  closeMark.textContent = "\u2715"
   closeMark.style.cssText = "position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.5)"
   btn.appendChild(face)
   btn.appendChild(closeMark)
