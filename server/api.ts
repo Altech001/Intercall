@@ -1,23 +1,27 @@
 import { randomBytes } from "node:crypto"
 import { SuiGrpcClient } from "@mysten/sui/grpc"
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify"
-import { currentModel, friendlyError, listModels, reply, testModel, type Turn } from "./ai.ts"
-import { contactForm, describeSubmission, extractUi, UI_GUIDE } from "./ui.ts"
-import { defaultWelcome, insightFor, summarizeTicket, summarizeWhenIdle } from "./understanding.ts"
+import { currentModel, friendlyError, listModels, reply, testModel, type Turn } from "./ai.js"
+import { contactForm, describeSubmission, extractUi, UI_GUIDE } from "./ui.js"
+import { defaultWelcome, insightFor, summarizeTicket, summarizeWhenIdle } from "./understanding.js"
 import {
+  background,
   charge,
   customerForVisitor,
   db,
+  flush,
   id,
   message,
   namespaceFor,
+  persistent,
   save,
+  sync,
   type Customer,
   type MemoryRef,
   type Ticket,
-} from "./db.ts"
-import { learn, memoriesFor, memoryMode, migrate, recall, remember } from "./memory.ts"
-import { speak, speakable, transcribe, voiceEnabled } from "./voice.ts"
+} from "./db.js"
+import { learn, memoriesFor, memoryMode, migrate, recall, remember } from "./memory.js"
+import { speak, speakable, transcribe, voiceEnabled } from "./voice.js"
 
 const HANDOFF = "[[HANDOFF]]"
 // Appended to the system prompt when the reply will be read aloud in voice mode.
@@ -51,7 +55,8 @@ export async function handle(req: Request): Promise<Response> {
     const m = url.pathname.match(re)
     if (m && method === req.method) {
       try {
-        return await h(req, m.groups ?? {})
+        await sync()
+        return flushAfter(await h(req, m.groups ?? {}))
       } catch (err) {
         if (err instanceof HttpError) return json({ error: err.message }, err.status)
         console.error(err)
@@ -60,6 +65,13 @@ export async function handle(req: Request): Promise<Response> {
     }
   }
   return json({ error: "Not found" }, 404)
+}
+
+/** With Postgres, the response ends only once its changes are stored, so the next request sees them. */
+async function flushAfter(res: Response) {
+  if (!persistent) return res
+  if (!res.body) return flush().then(() => res)
+  return new Response(res.body.pipeThrough(new TransformStream({ flush: () => flush() })), res)
 }
 
 class HttpError extends Error {
@@ -172,7 +184,7 @@ function saveDetails(c: Customer, values: Record<string, string>) {
     else (c.details ??= {})[k] = v
     facts.push(`${k}: ${v}`)
   }
-  if (facts.length) void remember(namespaceFor(c), `Customer provided their details: ${facts.join("; ")}`).catch(() => {})
+  if (facts.length) background(remember(namespaceFor(c), `Customer provided their details: ${facts.join("; ")}`))
 }
 
 route("GET", "/api/auth/nonce", async () => {
@@ -274,7 +286,7 @@ function closeTicket(t: Ticket) {
   t.status = "resolved"
   t.updatedAt = Date.now()
   save()
-  void summarizeTicket(t)
+  background(summarizeTicket(t))
 }
 
 const knownDetail = (c: Customer, key: string) =>
@@ -383,7 +395,7 @@ route("POST", "/api/chat", async (req) => {
     }
     if (card.ui.type === "rating") {
       t.rating = Math.max(1, Math.min(5, Number(values.rating) || 0))
-      void summarizeTicket(t)
+      background(summarizeTicket(t))
     }
     text = describeSubmission(card.ui, values).slice(0, 4000)
   }
@@ -395,7 +407,7 @@ route("POST", "/api/chat", async (req) => {
   }
   if (!t || t.status === "resolved") {
     // Anything from earlier conversations that isn't in memory yet goes in now.
-    for (const old of Object.values(db.tickets)) if (old.customerId === c.id) void summarizeTicket(old)
+    for (const old of Object.values(db.tickets)) if (old.customerId === c.id) background(summarizeTicket(old))
     t = {
       id: id(),
       number: ++db.seq,
@@ -469,7 +481,7 @@ route("POST", "/api/chat", async (req) => {
     // from their own words and stores them Seal-encrypted on Walrus. The whole
     // conversation is summarised into memory once it goes quiet.
     // Skip one-word replies ("ok", "done"): they carry no facts worth keeping.
-    if (ok && !b.card && text.split(/\s+/).length >= 3) void learn(ns, text)
+    if (ok && !b.card && text.split(/\s+/).length >= 3) background(learn(ns, text))
     summarizeWhenIdle(ticket)
   })
 })
@@ -617,7 +629,7 @@ route("PATCH", "/api/tickets/:id", async (req, p) => {
   if (b.priority && ["normal", "high"].includes(b.priority)) t.priority = b.priority
   t.updatedAt = Date.now()
   save()
-  if (b.status === "resolved") void summarizeTicket(t)
+  if (b.status === "resolved") background(summarizeTicket(t))
   return json(summary(t))
 })
 

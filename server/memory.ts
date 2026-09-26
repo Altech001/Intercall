@@ -1,5 +1,5 @@
 import { MemWal, MemWalMock } from "@mysten-incubation/memwal"
-import { db, id, save, type MemoryRef } from "./db.ts"
+import { db, id, save, type MemoryRef } from "./db.js"
 
 // Walrus Memory: each customer gets their own namespace. The relayer embeds,
 // Seal-encrypts and uploads every memory to Walrus; recall decrypts only what
@@ -64,10 +64,7 @@ export async function recall(namespace: string, query: string): Promise<MemoryRe
 export async function learn(namespace: string, customerText: string) {
   try {
     const res = await withRetry(() => client.analyze(customerText, namespace))
-    for (const f of res.facts) {
-      const rec = log(namespace, f.text, f.blob_id, f.job_id)
-      if (!rec.blobId && f.job_id) pending.set(f.job_id, { recordId: rec.id, since: Date.now() })
-    }
+    for (const f of res.facts) log(namespace, f.text, f.blob_id, f.job_id)
     return res.facts.length
   } catch (err) {
     console.warn("[memory] analyze failed:", (err as Error).message)
@@ -77,28 +74,30 @@ export async function learn(namespace: string, customerText: string) {
 
 export async function remember(namespace: string, text: string) {
   const job = await withRetry(() => client.remember(text, namespace))
-  const rec = log(namespace, text, undefined, job.job_id)
-  pending.set(job.job_id, { recordId: rec.id, since: Date.now() })
+  log(namespace, text, undefined, job.job_id)
 }
 
-// Uploads in flight. One batched status check every 10s records each memory's
-// Walrus blob id once the relayer has Seal-encrypted and stored it.
-const pending: Map<string, { recordId: string; since: number }> = ((globalThis as { __memPending?: Map<string, { recordId: string; since: number }> }).__memPending ??= new Map())
+// Uploads in flight: memories logged with a job id (their record id) and no blob id
+// yet. One batched status check every 10s records each memory's Walrus blob id once
+// the relayer has Seal-encrypted and stored it. Derived from `db`, so it survives
+// restarts and serverless instances (which call settlePending() per request).
+const SETTLE_FOR = 15 * 60_000
+const abandoned = new Set<string>()
+let lastSettle = 0
 
-async function settlePending() {
-  if (!pending.size) return
-  const ids = [...pending.keys()].slice(0, 50)
-  const res = await client.getRememberBulkStatus(ids).catch(() => undefined)
+export async function settlePending() {
+  if (Date.now() - lastSettle < 10_000) return
+  lastSettle = Date.now()
+  const waiting = db.memories.filter((m) => !m.blobId && !abandoned.has(m.id) && Date.now() - m.at < SETTLE_FOR)
+  if (!waiting.length) return
+  const res = await client.getRememberBulkStatus(waiting.slice(0, 50).map((m) => m.id)).catch(() => undefined)
   for (const job of res?.results ?? []) {
-    const p = pending.get(job.job_id)
-    if (!p) continue
-    if (job.blob_id) {
-      const rec = db.memories.find((m) => m.id === p.recordId)
-      if (rec) rec.blobId = job.blob_id
-      pending.delete(job.job_id)
-    } else if (job.status === "failed" || job.status === "not_found" || Date.now() - p.since > 15 * 60_000) {
+    const rec = db.memories.find((m) => m.id === job.job_id)
+    if (!rec) continue
+    if (job.blob_id) rec.blobId = job.blob_id
+    else if (job.status === "failed" || job.status === "not_found") {
       console.warn("[memory] upload not confirmed for job", job.job_id, job.error ?? job.status)
-      pending.delete(job.job_id)
+      abandoned.add(rec.id)
     }
   }
   save()

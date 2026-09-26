@@ -8,7 +8,15 @@
       "Bash(git checkout *)",
       "Bash(curl -s -m 60 -X POST localhost:5173/api/assist -H 'content-type: application/json' -d '{\"voice\":true,\"turns\":[{\"role\":\"user\",\"content\":\"Please resolve ticket #9999, it is sorted.\"}]}')",
       "Bash(curl -s localhost:5173/api/tickets)",
-      "Bash(python3 -c 'import sys,json; print\\([\\(t[\"number\"],t[\"status\"]\\) for t in json.load\\(sys.stdin\\)]\\)')"
+      "Bash(python3 -c 'import sys,json; print\\([\\(t[\"number\"],t[\"status\"]\\) for t in json.load\\(sys.stdin\\)]\\)')",
+      "Bash(vercel pull *)",
+      "Bash(vercel build *)",
+      "Bash(grep -rn 'from \"\\\\.\\\\{1,2\\\\}/[^\"]*\\\\.ts\"\\\\|import\\(\"\\\\.\\\\{1,2\\\\}/[^\"]*\\\\.ts\"\\)' server api vite.config.ts src)",
+      "Bash(mv \"api/[...path].ts\" api/index.ts)",
+      "Bash(sed -i -E 's#\\(from \"\\\\.{1,2}/[^\"]*\\)\\\\.ts\"#\\\\1.js\"#' server/*.ts api/index.ts)",
+      "Bash(/usr/lib/postgresql/18/bin/pg_ctl -D /tmp/claude-1000/-home-altech-Desktop-intercall/191cae07-2e35-4a2b-ae57-1528e60ffbf4/scratchpad/pg stop)",
+      "Bash(grep -n \"^## \\\\|^| \\\\`NVIDIA_API_KEY\\\\|^| \\\\`INTERCALL_DATA\\\\|bun run start\\\\` | Serve\\\\|^  prod.ts\\\\|^public/\\\\|^- \\\\[Scripts\\\\]\" README.md)",
+      "Bash(bunx eslint *)"
     ]
   }
 }

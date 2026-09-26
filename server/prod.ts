@@ -3,8 +3,8 @@
 import { createServer } from "node:http"
 import { readFile, stat } from "node:fs/promises"
 import { extname, join, normalize } from "node:path"
-import { handle } from "./api.ts"
-import { serveNode } from "./node.ts"
+import { handle } from "./api.js"
+import { serveNode } from "./node.js"
 
 const DIST = join(import.meta.dirname, "..", "dist")
 const PORT = Number(process.env.PORT || 8787)

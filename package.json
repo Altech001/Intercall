@@ -10,7 +10,8 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "start": "bun server/prod.ts"
+    "start": "bun server/prod.ts",
+    "env:vercel": "bun scripts/vercel-env.ts"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.68.0",
@@ -20,7 +21,9 @@
     "@mysten/seal": "^1.4.13",
     "@mysten/sui": "^2.31.3",
     "@mysten/walrus": "^1.2.28",
+    "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/vite": "^4",
+    "@vercel/functions": "^3.9.9",
     "ai": "^7.0.112",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",

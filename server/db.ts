@@ -1,6 +1,8 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { randomUUID } from "node:crypto"
+import { neon } from "@neondatabase/serverless"
+import { pgStore } from "./store.js"
 
 export type Role = "customer" | "ai" | "agent" | "system"
 export type TicketStatus = "open" | "pending" | "resolved"
@@ -133,20 +135,65 @@ function load(): Data {
   }
 }
 
-// One process owns the file, so an in-memory copy with atomic writes is enough.
-const g = globalThis as unknown as { __intercallDb?: Data }
+// Without DATABASE_URL one process owns the file, so an in-memory copy with
+// atomic writes is enough. With it (Neon on Vercel), each request syncs from Postgres.
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL
+const g = globalThis as unknown as {
+  __intercallDb?: Data
+  __intercallStore?: ReturnType<typeof pgStore<Data>>
+  __intercallTasks?: Set<Promise<unknown>>
+}
 export const db: Data = (g.__intercallDb ??= load())
-// Backfill settings added since this process started (the dev server hot-reloads this module).
-db.settings = { ...DEFAULTS.settings, ...db.settings }
+const store = DATABASE_URL
+  ? (g.__intercallStore ??= pgStore(pgQuery(DATABASE_URL), db, () => structuredClone(DEFAULTS)))
+  : undefined
+backfillSettings()
+
+function pgQuery(url: string) {
+  const sql = neon(url)
+  return (text: string, params?: unknown[]) => sql.query(text, params)
+}
+
+// Settings added in newer versions get their defaults, in place so nothing reads as changed.
+function backfillSettings() {
+  const s = db.settings as Record<string, unknown>
+  for (const [k, v] of Object.entries(DEFAULTS.settings)) if (!(k in s)) s[k] = structuredClone(v)
+}
+
+/** Pull the latest records from Postgres. A no-op for the local data file. */
+export async function sync() {
+  if (!store) return
+  await store.sync()
+  backfillSettings()
+}
+
+/** Write changed records to Postgres now (the data file is written by save()). */
+export async function flush() {
+  await store?.flush()
+}
+
+export const persistent = !!store
 
 let timer: ReturnType<typeof setTimeout> | undefined
 export function save() {
   clearTimeout(timer)
   timer = setTimeout(() => {
+    if (store) return void store.flush()
     mkdirSync(dirname(FILE), { recursive: true })
     writeFileSync(FILE + ".tmp", JSON.stringify(db, null, 2))
     renameSync(FILE + ".tmp", FILE)
   }, 50)
+}
+
+// Work that outlives the response (summaries, memory extraction). Serverless hosts
+// wait for it via idle() instead of freezing the function mid-task.
+const tasks = (g.__intercallTasks ??= new Set())
+export function background(p: Promise<unknown>) {
+  const t = p.catch((err) => console.error(err)).finally(() => tasks.delete(t))
+  tasks.add(t)
+}
+export async function idle() {
+  while (tasks.size) await Promise.allSettled([...tasks])
 }
 
 export const id = () => randomUUID()

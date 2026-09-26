@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import { db, type Tokens } from "./db.ts"
+import { db, type Tokens } from "./db.js"
 
 // NVIDIA NIM speaks the OpenAI API. The model is picked in the dashboard
 // (settings.model) and can be any id from integrate.api.nvidia.com/v1/models.

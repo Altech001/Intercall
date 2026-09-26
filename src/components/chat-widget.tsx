@@ -119,6 +119,14 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`
   }, [input])
 
+  // Esc shrinks the centered, expanded chat back to the corner.
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && toggleExpand()
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  })
+
   function toggleExpand() {
     const next = !expanded
     setExpanded(next)
@@ -201,14 +209,15 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
       role="dialog"
       aria-label={`Chat with ${botName}`}
       className={cn(
-        "relative flex flex-col overflow-hidden bg-background text-foreground",
+        "no-scrollbar relative flex flex-col overflow-hidden bg-background text-foreground",
         embedded
           ? "h-svh w-full"
           : cn(
-              "ic-pop fixed right-4 bottom-24 z-50 border shadow-2xl transition-[width,height] duration-300 sm:right-6",
+              "ic-pop fixed z-50 border shadow-2xl transition-[width,height] duration-300",
               expanded
-                ? "h-[calc(100svh-7.5rem)] w-[calc(100vw-2rem)] sm:w-[min(760px,calc(100vw-3rem))]"
-                : "h-[min(640px,calc(100svh-8rem))] w-[min(400px,calc(100vw-2rem))]"
+                ? // Centered on the page, over a dimmed backdrop.
+                  "inset-0 m-auto h-[min(860px,calc(100svh-3rem))] w-[min(1080px,calc(100vw-2rem))] origin-center"
+                : "right-4 bottom-24 h-[min(640px,calc(100svh-8rem))] w-[min(400px,calc(100vw-2rem))] sm:right-6"
             )
       )}
     >
@@ -244,7 +253,7 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
             </IconButton>
           </>
         )}
-        <IconButton label={expanded ? "Shrink chat" : "Expand chat"} onClick={toggleExpand} className="hidden sm:grid">
+        <IconButton label={expanded ? "Shrink chat" : "Expand chat"} onClick={toggleExpand} className={embedded ? undefined : "hidden sm:grid"}>
           {expanded ? <Minimize2 /> : <Maximize2 />}
         </IconButton>
         <IconButton label="Close chat" onClick={close}>
@@ -395,17 +404,27 @@ export function ChatWidget({ embedded = false, defaultOpen = false }: { embedded
 
   return (
     <>
+      {open && expanded && !embedded && (
+        <div aria-hidden onClick={toggleExpand} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] animate-in fade-in" />
+      )}
       {open && panel}
       <button
         aria-label={open ? "Close chat" : unread ? `Open chat, ${unread} new` : "Open chat"}
         onClick={() => setOpen((o) => !o)}
-        className="group fixed right-4 bottom-4 z-50 grid size-16 place-items-center sm:right-6 sm:bottom-6"
+        className="group fixed right-4 bottom-4 z-50 size-16 rounded-full bg-[radial-gradient(circle_at_50%_35%,#2b4fd8,#0b1020_70%)] shadow-[0_10px_30px_-6px_rgba(43,79,216,0.6)] ring-2 ring-white/90 transition-transform hover:scale-105 sm:right-6 sm:bottom-6"
       >
-        <Orb className="absolute inset-0 size-16 transition-transform group-hover:scale-110" active />
-        {open ? (
-          <ChevronDown className="relative size-6 text-white" />
-        ) : (
-          <span className="relative text-[10px] font-bold tracking-widest text-white uppercase">Chat</span>
+        <span className="absolute inset-0 overflow-hidden rounded-full">
+          <img
+            src="/walrus-hero.avif"
+            alt=""
+            draggable={false}
+            className="size-full origin-[50%_32%] scale-[1.2] object-cover object-top transition-transform duration-300 group-hover:scale-[1.3]"
+          />
+        </span>
+        {open && (
+          <span className="absolute inset-0 grid place-items-center rounded-full bg-black/50">
+            <ChevronDown className="size-6 text-white" />
+          </span>
         )}
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 grid size-5 place-items-center rounded-full bg-destructive text-[10px] font-bold text-white ring-2 ring-background">

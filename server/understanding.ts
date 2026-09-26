@@ -1,6 +1,6 @@
-import { complete, parseJson } from "./ai.ts"
-import { charge, db, namespaceFor, save, type Customer, type Insight, type Ticket } from "./db.ts"
-import { memoriesFor, remember } from "./memory.ts"
+import { complete, parseJson } from "./ai.js"
+import { charge, db, namespaceFor, save, type Customer, type Insight, type Ticket } from "./db.js"
+import { memoriesFor, remember } from "./memory.js"
 
 // Long-term understanding of each customer:
 //  1. every conversation is summarised into Walrus Memory, so the bot knows

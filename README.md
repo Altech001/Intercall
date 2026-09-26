@@ -29,6 +29,7 @@
   <img alt="NVIDIA NIM" src="https://img.shields.io/badge/NVIDIA_NIM-76B900?style=flat-square&logo=nvidia&logoColor=white" />
   <img alt="ElevenLabs" src="https://img.shields.io/badge/ElevenLabs-000000?style=flat-square&logo=elevenlabs&logoColor=white" />
   <img alt="shadcn/ui" src="https://img.shields.io/badge/shadcn%2Fui-000000?style=flat-square&logo=shadcnui&logoColor=white" />
+  <img alt="Neon" src="https://img.shields.io/badge/Neon_Postgres-00E599?style=flat-square&logo=postgresql&logoColor=black" />
   <img alt="Vercel" src="https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white" />
 </p>
 
@@ -46,6 +47,7 @@ into a ticket your team can take over from the dashboard.
 - [Clone and install](#clone-and-install)
 - [Configure](#configure)
 - [Run](#run)
+- [Deploy to Vercel](#deploy-to-vercel)
 - [Use it](#use-it)
 - [Embed on another site](#embed-on-another-site)
 - [How memory works](#how-memory-works)
@@ -84,6 +86,7 @@ cp .env.example .env
 
 | Variable | Required | What it does |
 | --- | --- | --- |
+| `DATABASE_URL` | On Vercel | Neon Postgres connection string. Leave empty locally to use the JSON file in `data/`. |
 | `NVIDIA_API_KEY` | No | NVIDIA NIM key from [build.nvidia.com](https://build.nvidia.com). Without it the widget still creates tickets and a human can reply. |
 | `NVIDIA_BASE_URL` | No | Defaults to `https://integrate.api.nvidia.com/v1`. |
 | `NVIDIA_MODEL` | No | Fallback model. Defaults to `nvidia/nemotron-3-super-120b-a12b`. |
@@ -116,6 +119,34 @@ bun run start
 ```
 
 Open http://localhost:8787, or the port you set in `PORT`.
+
+## Deploy to Vercel
+
+Vercel serves the built frontend, and `api/index.ts` runs the API as a serverless
+function. Serverless instances don't share memory or disk, so data lives in
+[Neon](https://neon.tech) Postgres.
+
+1. Create the database: in the Vercel dashboard, open your project, then
+   **Storage → Create Database → Neon**. This sets `DATABASE_URL` on the project.
+   The table is created on the first request.
+2. Push your keys from `.env` (Vercel never reads `.env` files):
+
+   ```bash
+   bun run env:vercel            # production; pass preview or development for others
+   ```
+
+   Only keys listed in `.env.example` are sent.
+3. Deploy:
+
+   ```bash
+   vercel --prod
+   ```
+
+To use the same database locally, add `DATABASE_URL` to `.env`. If the database is
+empty, the first request uploads your existing `data/intercall.json`.
+
+On Vercel, conversations that go quiet are only summarized when the ticket is resolved,
+because the 90-second idle timer doesn't survive between serverless requests.
 
 ## Use it
 
@@ -172,9 +203,12 @@ server/
   api.ts            routes (chat SSE, tickets, wallet sign-in, models, settings)
   ai.ts             NVIDIA NIM client (OpenAI-compatible), streaming, model tests
   memory.ts         Walrus Memory recall/analyze (local mock when keys are absent)
-  db.ts             JSON file store in data/ (tickets, customers, memory index)
+  db.ts             data store: JSON file in data/, or Postgres when DATABASE_URL is set
   voice.ts          ElevenLabs text-to-speech and speech-to-text
   prod.ts           production server (bun run start)
+  store.ts          Postgres persistence (used when DATABASE_URL is set)
+api/
+  index.ts          Vercel serverless entry for /api/*
 src/
   pages/            landing page and dashboard
   components/       UI, including chat-widget.tsx (the widget)
@@ -189,6 +223,7 @@ public/
 | `bun run dev` | Start the dev server with the API |
 | `bun run build` | Type-check and build to `dist/` |
 | `bun run start` | Serve the built app and API |
+| `bun run env:vercel` | Copy the keys from `.env` to the linked Vercel project |
 | `bun run preview` | Preview the built frontend only |
 | `bun run lint` | Run ESLint |
 | `bun run typecheck` | Run the TypeScript compiler without emitting |

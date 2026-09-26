@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { Customer, FormField, UiBlock } from "./db.ts"
+import type { Customer, FormField, UiBlock } from "./db.js"
 
 // Interactive cards the model may append to a reply as <ui>{json}</ui>.
 // Anything that doesn't validate is dropped; the text reply still goes out.
